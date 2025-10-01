@@ -1,12 +1,3 @@
-'''
-Ihnen ist sicher nicht entgangen, dass wir bei der Rekursion in den Wagon zwei Varianten gesehen haben (eine mit Arbeit
- auf dem Hinweg, eine mit Arbeit auf dem Rückweg).
-
-Natürlich gibt es auch bei der Rekursion in der Lok die Möglichkeit, die Arbeit bereits auf dem Hinweg zu verrichten.
-
-Implementieren Sie diese noch fehlende Variante. (Insgesamt sollten Sie dann vier Varianten haben Lok+Hin, Lok+Rück, Wagon+Hin, Wagon+Rück).
-'''
-
 from typing import Any
 
 
@@ -15,7 +6,7 @@ class Liste:
     def __init__(self):
         self.first = None
 
-    def __repr__(self):
+    def repr_iterativ(self):
         schaffner = self.first
         values = ''
         while schaffner is not None:
@@ -26,7 +17,13 @@ class Liste:
             schaffner = schaffner.next
         return f'[{values}]' if values else '[]'
 
-    # Längenermittlung auf dem klassischen Weg
+    def __repr__(self):
+        def repr_rekursiv(wagon: Wagon):
+            if wagon.next is None:
+                return repr(wagon.value)
+            return f'{repr(wagon.value)}, ' + repr_rekursiv(wagon.next)
+        return '[]' if self.first is None else f'[{repr_rekursiv(self.first)}]'
+
     def len_iterativ(self):
         if self.first is None:
             return 0
@@ -38,43 +35,47 @@ class Liste:
                 schaffner = schaffner.next
             return length
 
+    # ==================================================================
+    # Länge wird im Wagon ermittelt
+    # ==================================================================
     def __len__(self) -> int:
-        def len_rekursiv(wagon: Wagon) -> int:
-            if wagon is None:
-                return 0
-            return len_rekursiv(wagon.next) + 1
-
-        return len_rekursiv(self.first)
+        if self.first is None:
+            return 0
+        return len(self.first)
 
     def append(self, value: Any):
         neuer_wagon = Wagon(value)
         if self.first is None:
             self.first = neuer_wagon
-            print(f'Neuer Wagon mit Value {value}')
+            # print(f'Neuer Wagon mit Value {value}')
         else:
             schaffner = self.first
             while schaffner.next is not None:
                 schaffner = schaffner.next
             schaffner.next = neuer_wagon
-            print(f'Weiterer Wagon mit Value {value}')
+            # print(f'Weiterer Wagon mit Value {value}')
 
 
 class Wagon:
+    # ==================================================================
+    # Rückwärts ermittelt
+    # ==================================================================
+    def __len__(self):
+        if self.next is None:
+            return 1
+        return len(self.next) + 1
+
     def __init__(self, value: Any):
         self.next = None
         self.value = value
 
 
-# Tester
-liste_meine = Liste()
-liste_python = []
+lst = Liste()
+[lst.append(x) for x in range(3)]
+lst.append('drei')
+print(lst)
+print(lst.repr_iterativ())
 
-liste_meine.append(1)
-liste_python.append(1)
-liste_meine.append(2)
-liste_python.append(2)
-liste_meine.append("drei")
-liste_python.append('drei')
-
-print(f'{len(liste_meine)=}')
-print(f'{len(liste_python)=}')
+lst2 = Liste()
+print(lst2)
+print(lst2.repr_iterativ())
