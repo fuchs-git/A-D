@@ -33,43 +33,14 @@ class Liste:
 
 
     # ==================================================================
-    # vorwärts
+    # Länge wird im Wagon ermittelt
     # ==================================================================
     def __len__(self) -> int:
-
-        def len_rekursiv(wagon: Wagon, counter: int) -> int:
-            if wagon.next is None:
-                return counter + 1
-            return len_rekursiv(wagon.next, counter + 1)
-
         if self.first is None:
             return 0
+        return len(self.first)
 
-        return len_rekursiv(self.first, 0)
 
-    # ==================================================================
-    # rückwärts
-    # ==================================================================
-    # def __len__(self) -> int:
-    #     def len_rekursiv(wagon: Wagon) -> int:
-    #         if wagon is None:
-    #             return 0
-    #         return len_rekursiv(wagon.next) + 1
-    #
-    #     return len_rekursiv(self.first)
-
-    # # unterricht -> Rückwärts
-    # def len_unterricht(self):
-    #     def len_rekursiv(wagon: Wagon):
-    #         if wagon.next is None:
-    #             return 1
-    #         return len_rekursiv(wagon.next) +1
-    #
-    #
-    #     if self.first is None:
-    #         return 0
-    #
-    #     return len_rekursiv(self.first)
 
     def append(self, value: Any):
         neuer_wagon = Wagon(value)
@@ -85,6 +56,17 @@ class Liste:
 
 
 class Wagon:
+    # ==================================================================
+    # Rückwärts ermittelt
+    # ==================================================================
+    def __len__(self):
+        if self.next is None:
+            return 1
+        return len(self.next) + 1
+
+
+
     def __init__(self, value: Any):
         self.next = None
         self.value = value
+
