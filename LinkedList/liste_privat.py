@@ -6,26 +6,26 @@ from typing import Any
 
 class Liste:
     def __init__(self):
-        self.first = None
+        self._first = None
 
     def __repr__(self):
-        if self.first is None:
+        if self._first is None:
             return '[]'
-        return f'[{self.first}]'
+        return f'[{self._first}]'
 
     def __len__(self):
-        if self.first is None:
+        if self._first is None:
             return 0
-        return len(self.first)
+        return len(self._first)
 
     def append(self, value: Any):
-        if self.first is None:
-            self.first = Wagon(value)
+        if self._first is None:
+            self._first = _Wagon(value)
         else:
-            self.first.append(value)
+            self._first.append(value)
 
 
-class Wagon:
+class _Wagon:
     def __init__(self, value: Any):
         self.next = None
         self.value = value
@@ -42,7 +42,7 @@ class Wagon:
 
     def append(self, value):
         if self.next is None:
-            self.next = Wagon(value)
+            self.next = _Wagon(value)
         else:
             self.next.append(value)
 
@@ -55,4 +55,5 @@ liste.append(4)
 print(len(liste))
 liste.append('drei')
 print(len(liste))
-print(liste)
+
+
