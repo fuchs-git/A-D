@@ -1,6 +1,5 @@
 import time
-import liste
-import liste_Iter
+from LinkedList.alteVersionen import liste, liste_Iter
 
 liste_meine = liste.Liste()
 liste_iter = liste_Iter.Liste()

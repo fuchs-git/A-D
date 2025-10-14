@@ -1,6 +1,6 @@
 from typing import Any
 
-from LinkedList.liste import Wagon
+from LinkedList.alteVersionen.liste import Wagon
 
 
 class Liste:
