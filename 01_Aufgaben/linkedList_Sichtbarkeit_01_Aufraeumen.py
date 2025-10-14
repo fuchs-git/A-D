@@ -26,6 +26,12 @@ class Liste:
             else:
                 self.next.append(value)
 
+        def clone(self):
+            kopie = Liste._Wagon(self.value)
+            if self.next is not None:
+                kopie.next = self.next.clone()
+            return kopie
+
     def __init__(self):
         self._first = None
 
@@ -45,6 +51,12 @@ class Liste:
         else:
             self._first.append(value)
 
+    def copy(self):
+        neu = Liste()
+        if self._first is not None:
+            neu._first = self._first.clone()
+        return neu
+
 
 liste = Liste()
 print(len(liste))
@@ -56,3 +68,15 @@ liste.append('drei')
 print(liste)
 
 
+a = [1,2,3]
+b = a.copy()
+
+c = Liste()
+[c.append(i) for i in range(3)]
+print(c)
+d = c.copy()
+print(d)
+d.append(5)
+print(d)
+print(c)
+print(type(d))
