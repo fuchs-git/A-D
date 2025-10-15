@@ -23,7 +23,7 @@ class Liste:
         def __getitem__(self, index: int) -> Any:
             if index == 0:
                 return self.value
-            return self.next.__getitem__(index-1)
+            return self.next.__getitem__(index - 1)
 
         def append(self, value):
             if self.next is None:
@@ -78,8 +78,7 @@ print(len(liste))
 liste.append('drei')
 print(liste)
 
-
-a = [1,2,3]
+a = [1, 2, 3]
 b = a.copy()
 
 c = Liste()
