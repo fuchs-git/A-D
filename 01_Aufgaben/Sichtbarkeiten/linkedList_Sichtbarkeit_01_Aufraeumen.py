@@ -47,7 +47,7 @@ class Liste:
 
     def append(self, value: Any):
         if self._first is None:
-            self._first = Liste._Wagon(value)
+            self._first = self._Wagon(value)
         else:
             self._first.append(value)
 
