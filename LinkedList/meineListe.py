@@ -5,6 +5,17 @@ from typing import Any
 
 
 class Liste:
+    class _Iterator:
+        def __init__(self, first: Any):
+            self.temp = first
+
+        def __next__(self) -> Any:
+            if self.temp is not None:
+                v = self.temp.value
+                self.temp = self.temp.next
+                return v
+            raise StopIteration
+
     class _Wagon:
         def __init__(self, value: Any):
             self.next = None
@@ -23,7 +34,7 @@ class Liste:
         def __getitem__(self, index: int) -> Any:
             if index == 0:
                 return self.value
-            return self.next.__getitem__(index-1)
+            return self.next.__getitem__(index - 1)
 
         def append(self, value):
             if self.next is None:
@@ -50,6 +61,9 @@ class Liste:
             return 0
         return len(self._first)
 
+    def __iter__(self):
+        return self._Iterator(self._first)
+
     def __getitem__(self, index: int) -> Any:
         if self._first is None or index < 0 or index >= len(self):
             raise IndexError("list index out of range")
@@ -67,27 +81,3 @@ class Liste:
         if self._first is not None:
             neu._first = self._first.clone()
         return neu
-
-
-liste = Liste()
-print(len(liste))
-liste.append(3)
-print(liste)
-liste.append(4)
-print(len(liste))
-liste.append('drei')
-print(liste)
-
-
-a = [1,2,3]
-b = a.copy()
-
-c = Liste()
-[c.append(i) for i in range(3)]
-print(c)
-d = c.copy()
-print(d)
-d.append(5)
-print(d)
-print(c)
-print(type(d))
