@@ -93,6 +93,8 @@ l = Liste()
 l.append(1)
 l.append(2)
 l.append(2)
+l.append("drei")
+l.append("drei")
 l.append(23)
 print(l)
 
