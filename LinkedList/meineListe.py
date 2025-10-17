@@ -81,3 +81,19 @@ class Liste:
         if self._first is not None:
             neu._first = self._first.clone()
         return neu
+
+    def unique(self):
+        result = Liste()
+        uniq = set(self.copy())
+        [result.append(value) for value in uniq]
+        return result
+
+
+l = Liste()
+l.append(1)
+l.append(2)
+l.append(2)
+l.append(23)
+print(l)
+
+print(l.unique())
