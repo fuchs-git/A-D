@@ -9,6 +9,9 @@ class Liste:
         def __init__(self, first: Any):
             self.temp = first
 
+        def __iter__(self):
+            return self
+
         def __next__(self) -> Any:
             if self.temp is not None:
                 v = self.temp.value
@@ -82,9 +85,28 @@ class Liste:
             neu._first = self._first.clone()
         return neu
 
+    def _contains(self, value: Any) -> bool:
+        schaffner = self._first
+        while schaffner is not None:
+            if schaffner.value == value:
+                return True
+            schaffner = schaffner.next
+        return False
+
+    # unique ohne LC/SET: stabile Reihenfolge, erste Vorkommen bleiben
+    def unique(self):
+        result = Liste()
+        schaffner = self._first
+        while schaffner is not None:
+            if not result._contains(schaffner.value):
+                result.append(schaffner.value)
+            schaffner = schaffner.next
+        return result
+
+
     def unique_cheat(self):
         result = Liste()
-        uniq = set(self.copy())
+        uniq = self.copy()
         [result.append(value) for value in uniq]
         return result
 
@@ -98,4 +120,4 @@ l.append("drei")
 l.append(23)
 print(l)
 
-print(l.unique_cheat())
+print(l.unique())
