@@ -82,7 +82,7 @@ class Liste:
             neu._first = self._first.clone()
         return neu
 
-    def unique(self):
+    def unique_cheat(self):
         result = Liste()
         uniq = set(self.copy())
         [result.append(value) for value in uniq]
@@ -98,4 +98,4 @@ l.append("drei")
 l.append(23)
 print(l)
 
-print(l.unique())
+print(l.unique_cheat())
