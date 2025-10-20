@@ -9,9 +9,6 @@ class Liste:
         def __init__(self, first: Any):
             self.temp = first
 
-        def __iter__(self):
-            return self
-
         def __next__(self) -> Any:
             if self.temp is not None:
                 v = self.temp.value
