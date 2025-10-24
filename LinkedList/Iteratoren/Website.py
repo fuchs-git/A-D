@@ -9,10 +9,10 @@ print(next(mein_iterator))
 print(next(mein_iterator))
 # print(next(mein_iterator))  #  das geht schief, der Iterator ist "erschöpft"
 
-
+i = iter(quadrate)
 try:
     while True:
-        ...
-
+        print(next(i))
 except StopIteration:
     pass
+
