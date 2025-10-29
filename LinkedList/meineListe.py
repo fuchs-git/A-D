@@ -16,6 +16,12 @@ class Liste:
                 return v
             raise StopIteration
 
+        def __contains__(self, item):
+            for elem in self:
+                if elem == item:
+                    return True
+            return False
+
     class _Wagon:
         def __init__(self, value: Any):
             self.next = None
@@ -100,7 +106,6 @@ class Liste:
             schaffner = schaffner.next
         return result
 
-
     def unique_cheat(self):
         result = Liste()
         uniq = self.copy()
@@ -116,5 +121,10 @@ l.append("drei")
 l.append("drei")
 l.append(23)
 print(l)
+
+# in Test
+for i in l:
+    print(f'Liste "in" Test {i=}')
+print('drei' in l)
 
 print(l.unique())
