@@ -1,6 +1,7 @@
 '''
 Das ist eine Custom Liste, die sich so verhalten soll wie die builtin Liste
 '''
+import time
 from typing import Any
 
 
@@ -15,12 +16,6 @@ class Liste:
                 self.temp = self.temp.next
                 return v
             raise StopIteration
-
-        def __contains__(self, item):
-            for elem in self:
-                if elem == item:
-                    return True
-            return False
 
     class _Wagon:
         def __init__(self, value: Any):
@@ -61,6 +56,12 @@ class Liste:
         if self._first is None:
             return '[]'
         return f'[{self._first}]'
+
+    def __contains__(self, item):
+        for elem in self:
+            if elem == item:
+                return True
+        return False
 
     def __len__(self):
         if self._first is None:
@@ -113,18 +114,29 @@ class Liste:
         return result
 
 
-l = Liste()
-l.append(1)
-l.append(2)
-l.append(2)
-l.append("drei")
-l.append("drei")
-l.append(23)
-print(l)
 
-# in Test
-for i in l:
-    print(f'Liste "in" Test {i=}')
-print('drei' in l)
+if __name__ == '__main__':
+    l = Liste()
+    l.append(1)
+    l.append(2)
+    l.append(2)
+    l.append("drei")
+    l.append("drei")
+    l.append(23)
+    print(l)
 
-print(l.unique())
+    # in Test
+    for i in l:
+        print(f'Liste "in" Test {i=}')
+    print('drei' in l)
+
+    print(l.unique())
+
+    [l.append(i) for i in range(991)]
+    start = time.time()
+    print(500 in l)
+    print(time.time() - start)
+    
+    # Sortieren
+    liste = 'Alice Bob Clare Doris Elmo Forrest'.split()
+    print(sorted(liste, key=lambda x:x[1]))
