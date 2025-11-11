@@ -113,16 +113,21 @@ class Liste:
         [result.append(value) for value in uniq]
         return result
 
-    def bubble_sort(liste, demo = False):
-        n = len(liste)
+    def bubble_sort(self):
+        laenge = len(self)
         swapped = True
-        while swapped:  # wurde im letzten Durchlauf getauscht?
+        while swapped:
+            schaffner = self._first
             swapped = False
-            for i in range(1, n):
-                if liste[i - 1] > liste[i]:  # größeres vor kleinerem?
-                    liste[i - 1], liste[i] = liste[i], liste[i - 1]  # tauschen
-                    swapped = True  # merken, dass es in diesem Durchlauf Änderungen gab
-            n -= 1
+            for i in range(laenge -1):
+                try:
+                    if schaffner.value > schaffner.next.value:
+                        schaffner.value, schaffner.next.value = schaffner.next.value, schaffner.value
+                        swapped = True
+                    schaffner = schaffner.next
+                except AttributeError:
+                    pass
+            laenge -= 1
 
 
 if __name__ == '__main__':

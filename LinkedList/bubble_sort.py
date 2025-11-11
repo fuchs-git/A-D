@@ -22,7 +22,7 @@ def bubble_sort_optimiert(liste, demo = False):
                 swapped = True                                  # merken, dass es in diesem Durchlauf Änderungen gab
         n -= 1
 
-n = 10_000
+n = 5_000
 l1 =  [random.randint(1,n) for _ in range(n)]
 l2 = l1.copy()
 
@@ -38,7 +38,7 @@ print(time.time()-start)
 assert sorted(l1) == l1, "Fehler bei der Sortierung"
 assert sorted(l2) == l2, "Fehler bei der Sortierung"
 
-l3 = [ x for x in range(n)]
+l3 = [ n-x for x in range(n)] # alle Elemente müssen sortiert werden
 start = time.time()
-bubble_sort_optimiert(l2)
+bubble_sort_optimiert(l3)
 print(time.time()-start)
