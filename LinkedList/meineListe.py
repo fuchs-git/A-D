@@ -113,16 +113,28 @@ class Liste:
         [result.append(value) for value in uniq]
         return result
 
+    def bubble_sort(liste, demo = False):
+        n = len(liste)
+        swapped = True
+        while swapped:  # wurde im letzten Durchlauf getauscht?
+            swapped = False
+            for i in range(1, n):
+                if liste[i - 1] > liste[i]:  # größeres vor kleinerem?
+                    liste[i - 1], liste[i] = liste[i], liste[i - 1]  # tauschen
+                    swapped = True  # merken, dass es in diesem Durchlauf Änderungen gab
+            n -= 1
 
 
 if __name__ == '__main__':
     l = Liste()
     l.append(1)
+    l.append(9)
     l.append(2)
-    l.append(2)
-    l.append("drei")
-    l.append("drei")
+    l.append(3)
+    l.append(5)
     l.append(23)
+    print(l)
+    l.bubble_sort()
     print(l)
 
     # in Test
@@ -136,7 +148,7 @@ if __name__ == '__main__':
     start = time.time()
     print(500 in l)
     print(time.time() - start)
-    
+
     # Sortieren
-    liste = 'Alice Bob Clare Doris Elmo Forrest'.split()
-    print(sorted(liste, key=lambda x:x[1]))
+    # liste = 'Alice Bob Clare Doris Elmo Forrest'.split()
+    # print(sorted(liste, key=lambda x:x[1]))
