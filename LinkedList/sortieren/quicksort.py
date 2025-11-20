@@ -17,7 +17,7 @@ l1b = [2, 3]
 ###
 
 def quicksort(s: str) -> str:
-    if len(s) < 2:
+    if len(s) <= 1:
         return s
 
     pivot = s[0]
