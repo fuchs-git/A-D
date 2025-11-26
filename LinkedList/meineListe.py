@@ -129,6 +129,28 @@ class Liste:
                     pass
             laenge -= 1
 
+    def sort_quick(self):
+        def quicksort(links, rechts):
+            if links is rechts: return
+            pivot = links.value  # Pivot
+            aktuell = links  # aktuell Untersuchter
+            vorgrenze = links  # Vorgänger von Obergrenze
+            grenze = links  # Oberster, der kleiner/gleich dem Pivot ist
+            while True:
+                aktuell = aktuell.next
+                if aktuell is rechts: break
+                if aktuell.value < pivot:
+                    vorgrenze = grenze
+                    grenze = grenze.next
+                    grenze.value, aktuell.value = aktuell.value, grenze.value
+            links.value, grenze.value = grenze.value, links.value
+            if grenze is not rechts:
+                vorgrenze = grenze
+                grenze = grenze.next
+            quicksort(links, vorgrenze)
+            quicksort(grenze, rechts)
+
+        quicksort(self._first, None)
 
 if __name__ == '__main__':
     l = Liste()
@@ -139,20 +161,9 @@ if __name__ == '__main__':
     l.append(5)
     l.append(23)
     print(l)
-    l.bubble_sort()
+    l.sort_quick()
     print(l)
 
-    # in Test
-    for i in l:
-        print(f'Liste "in" Test {i=}')
-    print('drei' in l)
-
-    print(l.unique())
-
-    [l.append(i) for i in range(991)]
-    start = time.time()
-    print(500 in l)
-    print(time.time() - start)
 
     # Sortieren
     # liste = 'Alice Bob Clare Doris Elmo Forrest'.split()
