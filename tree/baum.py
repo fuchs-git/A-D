@@ -25,11 +25,10 @@ class Baum:  # könnte man auch "Menge" nennen oder "Set" oder "TreeSet"
 
         return rek(self.wurzel)
 
-
     def contains_entrek(self, item):
         todo = [self.wurzel]
         while todo:
-            jetzt : Baum._Knoten
+            jetzt: Baum._Knoten
             jetzt = todo.pop()
             if jetzt.wert == item:
                 return True
@@ -40,8 +39,6 @@ class Baum:  # könnte man auch "Menge" nennen oder "Set" oder "TreeSet"
             todo.append(jetzt.rechts)
             todo.append(jetzt.links)
 
-
-
     def __iter__(self):
         def rek(knoten: Baum._Knoten):
             if knoten is None:
@@ -51,6 +48,16 @@ class Baum:  # könnte man auch "Menge" nennen oder "Set" oder "TreeSet"
             yield from rek(knoten.rechts)
 
         yield from rek(self.wurzel)
+
+    def __iter__entr(self):
+        todo = [self.wurzel]
+        while todo:
+            akt: Baum._Knoten
+            akt = todo.pop()
+            if akt is not None:
+                yield akt.wert
+                todo.append(akt.links)
+                todo.append(akt.rechts)
 
     def __len__(self):  # rekursiv
         def rek(knoten: Baum._Knoten):
@@ -120,6 +127,27 @@ class Baum:  # könnte man auch "Menge" nennen oder "Set" oder "TreeSet"
                         aktuell.rechts = Baum._Knoten(wert)
                         return
                     aktuell = aktuell.rechts
+
+    def add_rek(self, wert: Any):  # so kann der Baum entarten!
+        if self.wurzel is None:
+            self.wurzel = Baum._Knoten(wert)
+            return True
+
+        def rek(knoten: Baum._Knoten):
+            if wert == knoten.wert:
+                return
+            elif wert < knoten.wert:
+                if knoten.links is None:
+                    knoten.links = Baum._Knoten(wert)
+                else:
+                    rek(knoten.links)
+            else:
+                if knoten.rechts is None:
+                    knoten.rechts = Baum._Knoten(wert)
+                else:
+                    rek(knoten.rechts)
+
+        return rek(self.wurzel)
 
     def treeview1(self):
         def rek(knoten: Baum._Knoten, tiefe=0):
