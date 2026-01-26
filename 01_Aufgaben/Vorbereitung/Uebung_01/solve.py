@@ -54,6 +54,36 @@ class Sequenz:
             yield now.value
             now = now.next
 
+    def insert(self, index: int, value: Any):
+
+        if self.first is None:
+            self.first = Sequenz._Element(value)
+            return
+
+        prev = self.first
+        wagon = prev.next
+
+        if index == 0:
+            new_wagon = Sequenz._Element(value)
+            new_wagon.next = self.first
+            self.first = new_wagon
+            return
+
+        counter = 1
+        while wagon is not None:
+            print(wagon.value)
+            if counter == index:
+                new_wagon = Sequenz._Element(value)
+                new_wagon.next = wagon
+                prev.next = new_wagon
+                return
+
+            # Index out of Range? -> Wird am Ende angehangen
+            counter += 1
+            prev = prev.next
+            wagon = wagon.next
+        prev.next = Sequenz._Element(value)
+
     def add(self, value: Any):
         if self.first is None:
             self.first = Sequenz._Element(value)
@@ -145,36 +175,39 @@ class Sequenz:
         if self.first is None:
             return
 
-        letzter_wert = self.first.value     # letzter wert
-        prev = self.first                   # Vorgänger
-        current = self.first.next           # aktuelles Element
+        letzter_wert = self.first.value  # letzter wert
+        prev = self.first  # Vorgänger
+        current = self.first.next  # aktuelles Element
 
         while current is not None:
-            if current.value > letzter_wert:            # current bleibt, letzter-wert wird aktualisiert
+            if current.value > letzter_wert:  # current bleibt, letzter-wert wird aktualisiert
                 letzter_wert = current.value
                 prev = current
             else:
                 '''
                 prev        current
                  ↓           ↓
-                [7]  ---->  [3]  ---->  [1]  ---->  [6]
+                [7]  ---->  [3]  ---->  [8]  ---->  [6]
                 '''
                 prev.next = current.next
                 '''
-                [7]  ----------------->  [1]  ---->  [6]
+                [7]  ----------------->  [8]  ---->  [6]
                 '''
                 current = prev.next
                 '''
                 prev        current
                  ↓           ↓
-                [7]  ---->  [1]  ---->  [6]
+                [7]  ---->  [8]  ---->  [6]
                 '''
 
 
 meineListe = Sequenz()
-[meineListe.add(x) for x in [1,7,43,768,342,45645,653,21,7,2]]
+[meineListe.add(x) for x in [1, 7, 43, 768, 342, 45645, 653, 21, 7, 2]]
 # print(meineListe.len_entrekursiv())
 # print(meineListe.sorted_copy())
-print(meineListe)
+# print(meineListe)
 meineListe.stalin_sort_inplace()
+
+print(meineListe)
+meineListe.insert(8, 'Das ist ein Test')
 print(meineListe)
