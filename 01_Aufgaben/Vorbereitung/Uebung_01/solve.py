@@ -84,6 +84,25 @@ class Sequenz:
             wagon = wagon.next
         prev.next = Sequenz._Element(value)
 
+    def delete(self, index):
+
+        prev = self.first
+        wagon = prev.next
+
+        if index == 0:
+            self.first = wagon
+            return
+
+        counter = 1
+        while wagon is not None:
+            if counter == index:
+                prev.next = wagon.next
+                return
+            counter += 1
+            prev = prev.next
+            wagon = wagon.next
+
+
     def add(self, value: Any):
         if self.first is None:
             self.first = Sequenz._Element(value)
@@ -211,3 +230,6 @@ meineListe.stalin_sort_inplace()
 print(meineListe)
 meineListe.insert(8, 'Das ist ein Test')
 print(meineListe)
+meineListe.delete(5)
+print(meineListe)
+
