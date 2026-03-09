@@ -2,27 +2,35 @@ import basis_graph
 import tkinter as tk
 import tkinter.filedialog as fd
 from tkinter.ttk import Combobox
-# from PIL import Image, ImageTk # wenn PIL installiert ist, können Bilder skaliert werden
-import os, platform
-from typing import Iterator, Callable, Literal
+# from PIL import Image, ImageTk # wenn PIL installiert ist, können Bilder skaliert werden,
+import os, platform, sys
+from typing import Iterator, Callable, Literal, reveal_type
+from math import sin, cos, pi
 
+########################## Block mit Vorgabewerten, diese dürfen geändert werden ##########################
 # Optik
 LINIEN_DICKE = 6
 KNOTEN_RADIUS = 15
 PFEIL_FORM = (12, 25, 15)  # Länge der Spitze am Schaft, Länge Außenseite der Spitze, Länge Schaft/Außenecke
-FARBE_AUSWAHL = "lightgreen"  # Farbe ausgewählter Objekte erstes/Start/Anfang mit links click
-FARBE_AUSWAHL_2 = "red"  # Farbe ausgewählter Objekte zweites/Ziel/Ende mit rechts click
+FARBE_SELECT1 = "lightgreen"  # Farbe ausgewählter Objekte erstes/Start/Anfang mit links click
+FARBE_SELECT2 = "red"  # Farbe ausgewählter Objekte zweites/Ziel/Ende mit rechts click
 FARBE_KANTEN_GEWICHTE = "black"
-FARBE_KNOTEN_MITTE = "grey60"
+FARBE_KNOTEN_MITTE = "white"
+FARBE_KNOTEN_TEXT = "black"
 FARBE_KNOTEN_RAND = "black"
 FARBE_KANTEN = "grey20"
-FARBE_TEMP_KANTEN = "black"  # die Kanten, während man sie hinzufügt
+FARBE_TEMP_LINIE = "black"  # die Kanten, während man sie hinzufügt
+FORM_KNOTEN = 0  # 0 - Kreis, 1 - Dreieck Spitze unten, 2 - Quadrat, 3 und höher n-Eck Spitze oben
+FORM_KNOTEN_SELECT1 = 3  # 0 - Kreis, 1 - Dreieck Spitze unten, 2 - Quadrat, 3 und höher n-Eck Spitze oben
+FORM_KNOTEN_SELECT2 = 1  # 0 - Kreis, 1 - Dreieck Spitze unten, 2 - Quadrat, 3 und höher n-Eck Spitze oben
 
 # Verhalten
-ALGO_PAUSE_ZEIT = 1200  # Wartezeit in ms bei automatischer Ausführung von Algos
+ALGO_PAUSE_ZEIT = 100  # Wartezeit in ms bei automatischer Ausführung von Algos
 KLICK_DIST = 5  # wie weit man höchstens von Objekten entfernt klicken muss, um sie zu treffen
-ZOOM_FAKTOR_REIN = 1.1
+ZOOM_FAKTOR_REIN = 1.1  # wie stark/schnell der Zoom erfolgt
 ZOOM_FAKTOR_RAUS = 1 / ZOOM_FAKTOR_REIN
+
+######################## ab hier Finger weg (gucken ist natürlich erlaubt) #########################################
 
 # Technik
 OS = platform.system()  # "Linux", "Windows", "Darwin" (MacOS), andere?
@@ -33,24 +41,27 @@ OS = platform.system()  # "Linux", "Windows", "Darwin" (MacOS), andere?
 class Knoten(basis_graph.Knoten):
     def __init__(self, canvas: tk.Canvas,
                  name: str, x: float, y: float, r: float = KNOTEN_RADIUS,
-                 kommentar: str | None = None):
+                 kommentar: str | None = None,
+                 anzahl_ecken: int = 0):
         basis_graph.Knoten.__init__(self, name, kommentar=kommentar)
 
         self._canvas: tk.Canvas = canvas
         self.x: float = x
         self.y: float = y
         self.r: float = r
-
-        self.canvas_id = self._canvas.create_oval(-self.r, -self.r, self.r, self.r,
-                                                  width=LINIEN_DICKE,
-                                                  fill=FARBE_KNOTEN_MITTE,
-                                                  outline=FARBE_KNOTEN_RAND)
-        self._canvas.tag_raise(self.canvas_id)
+        # self._anzahl_ecken = anzahl_ecken
+        self._form: list[float] | None = None
 
         # font-Größe dynamisch anpassen, damit die Beschriftung in den Kreis passt
         font_size = int(2 * self.r)  # der Durchmesser des Kreises ist eine gute Obergrenze
-        self.text_id = self._canvas.create_text(0, 0, text=self.name, font=('courier', font_size, "bold"))
+        self.text_id = self._canvas.create_text(0, 0,
+                                                text=self.name,
+                                                font=('courier', font_size, "bold"),
+                                                fill=FARBE_KNOTEN_TEXT,
+                                                tags="Beschriftung")
+        self.canvas_id = self._neues_canvas_knotensymbol(fill=FARBE_KNOTEN_MITTE, outline=FARBE_KNOTEN_RAND)
         self._canvas.tag_raise(self.text_id)
+
         while True:
             self._bbx1, self._bby1, self._bbx2, self._bby2 = self._canvas.bbox(self.text_id)
             if ((self._bbx2 - self._bbx1) < 2 * self.r - LINIEN_DICKE // 2 and
@@ -59,10 +70,85 @@ class Knoten(basis_graph.Knoten):
             self._canvas.itemconfigure(self.text_id, font=('courier', font_size, "bold"))
         self._text_off_x = self._text_off_y = LINIEN_DICKE // 2 - 2
 
+    def _neues_canvas_knotensymbol(self, fill: str, outline: str):
+        optionen = {"width": LINIEN_DICKE,
+                    "tags": "Knoten",
+                    "fill": fill,
+                    "outline": outline}
+        if self._form is None:  # Kreis
+            cid = self._canvas.create_oval(-self.r, -self.r, self.r, self.r, **optionen)
+        else:  # Polygon
+            cid = self._canvas.create_polygon(self._form, **optionen)
+        self._canvas.tag_raise(cid)  # Knoten oben
+        self._canvas.tag_raise(self.text_id)  # Text über Knoten
+        return cid
+
+    @property
+    def anzahl_ecken(self):
+        return 0 if self._form is None else len(self._form) // 2
+
+    def __set_design(self,  # die Methode soll nur vom Graph, aber nicht aus dem Graphtool aufgerufen werden
+                     form: int | None = None,
+                     fill: str | None = None,
+                     outline: str | None = None) -> int:
+        """
+        :ecken: legt die Form der Kreisdarstellung fest
+        0 Ecken → Kreis
+        1 und 2 Ecken → Dreieck und Quadrat oben eine Seite
+        ab 3 Ecken → n-Eck, oben Spitze
+
+        Ist die bisherige Form schon die gewünschte, tut es nichts.
+        Ist die Anzahl anders, wird die bisherige shape/form des Knotens gelöscht und eine neue angelegt.
+
+        Das muss vom Graph aufgerufen werden, nicht direkt von außerhalb!
+        Der aufrufende Graph muss seine Datenstrukturen an die neue ID anpassen!
+
+        :fill: und :outline: siehe canvas
+
+        :return: die bestehende (bei gleicher Anzahl) oder die neue Canvas-ID (bei neuer Anzahl)
+        """
+
+        if (form is None
+                or form == 0 and self._form is None  # war Kreis → bleibt, wie es ist
+                or self._form is not None and len(self._form) == form  # war Polygon → bleibt, wie es ist
+        ):
+            # nur Farben ändern
+            optionen = {}
+            if fill is not None: optionen["fill"] = fill
+            if outline is not None: optionen["outline"] = outline
+            if optionen: self._canvas.itemconfigure(self.canvas_id, **optionen)
+        else:
+            if not isinstance(form, int): raise TypeError("form muss ein int sein")
+            # (auch) Form ändern
+            if form == 0:  # soll Kreis werden
+                self._form = None
+            else:  # soll Polygon werden
+                ecken = form + (0 if form > 2 else 2)
+                self._form = []
+                for i in range(ecken):
+                    bogen = pi * i * 2 / ecken  #
+                    l = KNOTEN_RADIUS + LINIEN_DICKE
+                    if form == 1:  # Dreieck oben flach
+                        bogen += pi
+                    elif form == 2:  # Quadrat oben flach
+                        bogen += pi / 4
+                    # alle anderen n-Ecke mit Spitze oben
+                    self._form.append(sin(bogen) * l)
+                    self._form.append(-cos(bogen) * l)
+
+            fill = self._canvas.itemcget(self.canvas_id, "fill") if fill is None else fill
+            outline = self._canvas.itemcget(self.canvas_id, "outline") if outline is None else outline
+            self._canvas.delete(self.canvas_id)
+            self.canvas_id = self._neues_canvas_knotensymbol(fill=fill, outline=outline)
+        return self.canvas_id
+
     def update(self, delta_x: float = 0, delta_y: float = 0):
         self.x += delta_x
         self.y += delta_y
-        self._canvas.coords(self.canvas_id, self.x - self.r, self.y - self.r, self.x + self.r, self.y + self.r)
+        if self._form is None:
+            self._canvas.coords(self.canvas_id, self.x - self.r, self.y - self.r, self.x + self.r, self.y + self.r)
+        else:
+            self._canvas.coords(self.canvas_id, [p + (self.y if i % 2 else self.x) for i, p in enumerate(self._form)])
         self._canvas.coords(self.text_id, self.x + self._text_off_x, self.y + self._text_off_y)
 
 
@@ -84,14 +170,18 @@ class Kante(basis_graph.Kante):
 
         line_args = {'arrow': "last", 'arrowshape': PFEIL_FORM} if self.ist_gerichtet else {}
         self.canvas_id = self._canvas.create_line(self.von.x, self.von.y, self.nach.x, self.nach.y,
-                                                  width=LINIEN_DICKE, fill=FARBE_KANTEN, **line_args)
+                                                  tags="Kante",
+                                                  width=LINIEN_DICKE,
+                                                  fill=FARBE_KANTEN,
+                                                  **line_args)
         if self.gewicht is None:
             self.text_id = None
         else:
             self.text_id = self._canvas.create_text(0, 0,
                                                     text=str(self.gewicht),
                                                     font=('courier', PFEIL_FORM[2] * 2, "bold"),
-                                                    fill=FARBE_KANTEN_GEWICHTE)
+                                                    fill=FARBE_KANTEN_GEWICHTE,
+                                                    tags="Beschriftung")
 
     @property
     def nach(self) -> Knoten:
@@ -100,6 +190,17 @@ class Kante(basis_graph.Kante):
     @property
     def von(self) -> Knoten:
         return self.__von
+
+    def __set_design(self,  # die Methode soll nur vom Graph, aber nicht aus dem Graphtool aufgerufen werden
+                     fill: str | None = None,
+                     dash: tuple[int, ...] | None = None):
+        """
+        setzt Farbe (fill) und Strichelung (dash) der Kante
+        """
+        optionen = {}
+        if fill is not None: optionen["fill"] = fill
+        if dash is not None: optionen["dash"] = dash
+        if optionen: self._canvas.itemconfigure(self.canvas_id, **optionen)
 
 
 ############################################# Ende von Kante #############################################
@@ -207,29 +308,31 @@ class Graph(
                                    gewichtet=gewichtet)
 
         self._knoten_dict: dict[str, Knoten] = {}
+        self._knoten_set: set = set()  # intern unnötig, wird nur für schnelle Zugriffe immer aktuell vorgehalten
         self._kanten_dict: dict[str, Kante] = {}
+        self._kanten_set: set = set()  # intern unnötig, wird nur für schnelle Zugriffe immer aktuell vorgehalten
         self._multi_kanten_dict: dict[str, CanvasMultiKante] = {}
         self._canvas_id_dict: dict[int, Knoten | Kante] = {}
 
-        self._drag_links_id: int | None = None  # ID des geklickten Dings
-        self._drag_links_nur_click: bool = True  # ob ein geklickter Knoten, noch nicht bewegt wurde
-        self._drag_links_start_x: float | None = None
-        self._drag_links_start_y: float | None = None
-
-        self._drag_rechts_nur_click: bool = True  # ob ein geklickter Knoten, noch nicht bewegt wurde
-        self._drag_rechts_start_x: float | None = None
-        self._drag_rechts_start_y: float | None = None
-        self._drag_rechts_start_knoten_id: int | None = None  # Startknoten für neue Kante
-        self._drag_rechts_temp_line: int | None = None  # temporäre Grafik der neu anzulegenden Kante
+        self._click_obj_links: Knoten | Kante | None = None  # das geklickte Ding
+        self._click_obj_rechts: Knoten | None = None  # das geklickte Ding - immer der Startknoten für neue Kante
+        self._drag_nur_click_links: bool = True  # ob ein nur geklickt oder schon bewegt wurde
+        self._drag_nur_click_rechts: bool = True  # ob ein nur geklickt oder schon bewegt wurde
+        self._drag_start_links_x: float | None = None
+        self._drag_start_links_y: float | None = None
+        self._drag_start_rechts_x: float | None = None
+        self._drag_start_rechts_y: float | None = None
+        self._drag_rechts_temp_line_id: int | None = None  # temporäre ID der neu anzulegenden Kante
 
         self._fenster = tk.Tk()
         self._fenster.geometry("1220x720")
 
         self.canvas = tk.Canvas(master=self._fenster)
         self.canvas.pack(side="bottom", expand=True, fill="both")
-        # self._hintergrundbild_original: Image.Image | None = None           # mit PIL statt der nächsten
+
+        # self._hintergrundbild_original: Image.Image | None = None           # mit PIL statt der nächsten Zeile
         self._hintergrundbild_original: tk.PhotoImage | None = None
-        # self._hintergrundbild_resized: ImageTk.PhotoImage | None = None     # mit PIL
+        # self._hintergrundbild_resized: ImageTk.PhotoImage | None = None     # mit PIL diese Zeile zusätzlich
         self._canvas_background_id: int | None = None  # canvas id | None
 
         frm_text = tk.Frame(master=self._fenster)
@@ -247,7 +350,7 @@ class Graph(
         self._lbl_out.pack(side="left", anchor="center", fill="x", padx=20)
 
         # graph + Fenster Buttons
-        self.selected: Knoten | Kante | None = None  # das auf dem Canvas gewählte Ding (Kante oder Knoten)
+        self.selected1: Knoten | Kante | None = None  # das auf dem Canvas gewählte Ding (Kante oder Knoten)
         self.selected2: Knoten | Kante | None = None  # das auf dem Canvas gewählte Ding (Kante oder Knoten)
         self._btn_laden = tk.Button(master=frm_btns_graph, text="laden", command=self.lade_graph_datei)
         self._btn_laden.pack(side="left", padx=5, pady=5)
@@ -275,7 +378,7 @@ class Graph(
         self._cb_auto = tk.Checkbutton(master=frm_btns_algo, text="auto", variable=self._var_cb_auto,
                                        state="disabled", command=self._cb_auto_toggle)  # CheckBox auto
         self._cb_auto.pack(side="left", padx=5, pady=5)
-        self._btn_reset = tk.Button(master=frm_btns_algo, text="Farb-Reset", command=self.reset)
+        self._btn_reset = tk.Button(master=frm_btns_algo, text="Optik-Reset", command=self.reset)
         self._btn_reset.pack(side="left", padx=5, pady=5)
 
         # Labels
@@ -298,11 +401,11 @@ class Graph(
         else:  # Windows + MacOS (+ andere?)
             self.canvas.bind("<MouseWheel>", self._zoom)
 
-        self.canvas.bind('<ButtonPress-1>', self._drag_links_start)
+        self.canvas.bind('<ButtonPress-1>', self._drag_start_links)
         self.canvas.bind('<B1-Motion>', self._drag_links_weiter)
         self.canvas.bind('<ButtonRelease-1>', self._drag_links_stop)
 
-        self.canvas.bind('<ButtonPress-3>', self._drag_rechts_start)
+        self.canvas.bind('<ButtonPress-3>', self._drag_start_rechts)
         self.canvas.bind('<B3-Motion>', self._drag_rechts_weiter)
         self.canvas.bind('<ButtonRelease-3>', self._drag_rechts_stop)
 
@@ -312,7 +415,7 @@ class Graph(
         self._fenster.bind('<Right>', self._pfeiltaste_rechts)
         self._fenster.bind('<Down>', self._pfeiltaste_runter)
 
-        self.canvas.bind('<Configure>', self._canvas_resize)
+        self.canvas.bind('<Configure>', self._canvas_config)  # für Größenänderung
 
         self._combo_algos.bind('<<ComboboxSelected>>', self._combo_select)
 
@@ -322,16 +425,16 @@ class Graph(
 
     def __str__(self):
         return (f"{basis_graph.Graph.__str__(self)}\n"
-                f"Auswahl 1: {'nix' if self.selected is None else self.selected}, "
+                f"Auswahl 1: {'nix' if self.selected1 is None else self.selected1}, "
                 f"Auswahl 2: {'nix' if self.selected2 is None else self.selected2}")
 
-    @property  # basis_graph property überschreiben, damit die Typen der Kanten von hier sind
+    @property  # basis_graph property überschreiben
     def kanten(self):
-        return iter(self._kanten_dict.values())
+        return self._kanten_set
 
-    @property  # basis_graph property überschreiben, damit die Typen der Knoten von hier sind
+    @property  # basis_graph property überschreiben
     def knoten(self):
-        return iter(self._knoten_dict.values())
+        return self._knoten_set
 
     ################### Methoden (außer Properties, Callbacks und Algo-Logik) ##################################
 
@@ -342,13 +445,15 @@ class Graph(
     def _graph_speichern(self):
         if self.running: return  # nicht, wenn gerade ein Algo läuft
         dateiname = fd.asksaveasfilename(initialdir=os.path.realpath(__file__),
-                                         filetypes=(("Graph Datei", "*.grf *.graph"),))
+                                         filetypes=(("Graph Datei", "*.grf *.graph"),),
+                                         defaultextension=".graph")
         if dateiname:
             with open(dateiname, "wt") as datei:
                 elem: str | Knoten | Kante
                 for elem in self._datei_zeilen:
                     if (t := type(elem)) == str:
                         datei.write(f"{elem}")
+                        if not elem.endswith('\n'): datei.write('\n')
                     elif t == Knoten:
                         datei.write(f"{elem.name};{int(elem.x)};{int(elem.y)}"
                                     f"{"\n" if elem.kommentar is None else f' #{elem.kommentar}'}")
@@ -357,12 +462,11 @@ class Graph(
                                     f"{f',{int(elem.gewicht)}' if self.ist_gewichtet else ''}"
                                     f"{"\n" if elem.kommentar is None else f' #{elem.kommentar}'}")
 
-    def _hole_canvas_id_bei_maus(self, x: float, y: float, typen: tuple | None = None) -> int | None:
+    def _hole_canvas_obj_bei_maus(self, x: float, y: float, typen: tuple) -> Knoten | Kante | None:
         canvas_ids = self.canvas.find_overlapping(x - KLICK_DIST, y - KLICK_DIST, x + KLICK_DIST, y + KLICK_DIST)
-        for canvas_id in canvas_ids:
-            if canvas_id in self._canvas_id_dict:
-                if typen is None or type(self._canvas_id_dict[canvas_id]) in typen:
-                    return canvas_id
+        for c_id in canvas_ids:
+            if c_id in self._canvas_id_dict:
+                if type(c_obj := self._canvas_id_dict[c_id]) in typen: return c_obj
         return None
 
     def lade_graph(self, dateiname: str) -> None:
@@ -378,6 +482,10 @@ class Graph(
                 self._kanten_dict.clear()
                 self._multi_kanten_dict.clear()
                 self._canvas_id_dict.clear()
+                self.selected1 = None
+                self.selected2 = None
+                self._knoten_set.clear()
+                self._kanten_set.clear()
 
                 self.canvas.delete("all")
                 self._lade_hintergrund()
@@ -416,29 +524,31 @@ class Graph(
         dateiname = fd.askopenfilename(initialdir=os.path.realpath(__file__),
                                        filetypes=(("Graph Datei", "*.grf *.graph"),))
         if isinstance(dateiname, str) and dateiname:  # bei Abbruch ist es ein leeres Tupel
-            print(dateiname)
             self.lade_graph(dateiname)
+            print(f"{dateiname} geladen")
 
     def _lade_hintergrund(self):
         if self._hintergrundbild_original is not None:
-            # x = self.canvas.winfo_width() # mit PIL
-            # y = self.canvas.winfo_height() # mit PIL
-            # resized = self._hintergrundbild_original.resize((x, y)) # mit PIL
-            # self._hintergrundbild_resized = ImageTk.PhotoImage(resized) # mit PIL
+            # x = self.canvas.winfo_width() # mit PIL diese Zeile zusätzlich
+            # y = self.canvas.winfo_height() # mit PIL diese Zeile zusätzlich
+            # resized = self._hintergrundbild_original.resize((x, y)) # mit PIL diese Zeile zusätzlich
+            # self._hintergrundbild_resized = ImageTk.PhotoImage(resized) # mit PIL diese Zeile zusätzlich
             if self._canvas_background_id is None or self._canvas_background_id not in self.canvas.find_all():
-                # mit PIL statt der nächsten
+                # mit PIL statt der nächsten Zeile
                 # self._canvas_background = self.canvas.create_image(0, 0, image=self._hintergrundbild_resized, anchor="nw")
-                self._canvas_background_id = self.canvas.create_image(0, 0, image=self._hintergrundbild_original,
-                                                                      anchor="nw")
+                self._canvas_background_id = self.canvas.create_image(0, 0,
+                                                                      image=self._hintergrundbild_original,
+                                                                      anchor="nw",
+                                                                      tags="Hintergrund")
                 self.canvas.tag_lower(self._canvas_background_id)
             else:
-                # mit PIL statt der nächsten
+                # mit PIL statt der nächsten Zeile
                 # self.canvas.itemconfigure(self._canvas_background, image=self._hintergrundbild_resized)
                 self.canvas.itemconfigure(self._canvas_background_id, image=self._hintergrundbild_original)
 
     def lade_hintergrund_datei(self, bilddatei: str):
         try:
-            # mit PIL statt der nächsten
+            # mit PIL statt der nächsten Zeile
             # self._hintergrundbild_original = Image.open(bilddatei)
             self._hintergrundbild_original = tk.PhotoImage(file=bilddatei)
         except Exception as e:
@@ -449,6 +559,7 @@ class Graph(
         kn = Knoten(self.canvas, name, int(x), int(y), kommentar=kommentar)
         self._knoten_dict[name] = kn
         self._canvas_id_dict[kn.canvas_id] = kn
+        self._knoten_set.add(kn)
 
         if insert:
             i = 0
@@ -504,6 +615,7 @@ class Graph(
                            kommentar=kommentar)
         self._kanten_dict[name] = ka
         self._canvas_id_dict[ka.canvas_id] = ka
+        self._kanten_set.add(ka)
         self._datei_zeilen.append(ka)
         self._update(canvas_obj=ka)
 
@@ -512,7 +624,7 @@ class Graph(
 
     ###################################### GUI Callbacks ###########################################################
 
-    def _canvas_resize(self, event: tk.Event):
+    def _canvas_config(self, event: tk.Event):  # insbesondere die Größenänderung
         self._lade_hintergrund()
 
     def _combo_select(self, event: tk.Event):
@@ -528,137 +640,120 @@ class Graph(
     def _delete(self, event: tk.Event):
         if self.running: return
         if self._maus_unten is not None: return
-        if self.selected is None: return
-        if isinstance(self.selected, Kante):
-            self._multi_kanten_dict[self.selected.multi_kante.name].entferne_kante(self.selected.name)
-            del self._kanten_dict[self.selected.name]
-        elif isinstance(self.selected, Knoten):
+        if self.selected1 is None: return
+        if isinstance(self.selected1, Kante):
+            self._multi_kanten_dict[self.selected1.multi_kante.name].entferne_kante(self.selected1.name)
+            del self._kanten_dict[self.selected1.name]
+        elif isinstance(self.selected1, Knoten):
             for ka in self.kanten:  # Knoten mit Kanten kann man nicht löschen
-                if ka.von is self.selected or ka.nach is self.selected:
-                    print(f"Knoten {self.selected} hat noch Kanten (z.B. {ka}) => wird nicht gelöscht")
+                if ka.von is self.selected1 or ka.nach is self.selected1:
+                    print(f"Knoten {self.selected1} hat noch Kanten (z.B. {ka}) => wird nicht gelöscht")
                     return
-            del self._knoten_dict[self.selected.name]
-        else:
+            del self._knoten_dict[self.selected1.name]
+        else:  # hier sind nur Knoten oder Kanten auswählbar, aber falls doch.....
             return
-        if self.selected.text_id is not None: self.canvas.delete(self.selected.text_id)
-        self._datei_zeilen.remove(self.selected)
-        del self._canvas_id_dict[self.selected.canvas_id]
-        self.canvas.delete(self.selected.canvas_id)
-        self.selected = None
+        if self.selected1.text_id is not None: self.canvas.delete(self.selected1.text_id)
+        self._datei_zeilen.remove(self.selected1)
+        del self._canvas_id_dict[self.selected1.canvas_id]
+        self.canvas.delete(self.selected1.canvas_id)
+        self.selected1 = None
+        self._knoten_set = set(self._knoten_dict.values())
+        self._kanten_set = set(self._kanten_dict.values())
 
-    def _drag_links_start(self, event: tk.Event):
+    def _drag_start_links(self, event: tk.Event):
         self._maus_unten = "links"
-        self._drag_links_start_x = event.x
-        self._drag_links_start_y = event.y
-        self._drag_links_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten, Kante))
-        self._drag_links_nur_click = True
+        self._drag_start_links_x = event.x
+        self._drag_start_links_y = event.y
+        self._click_obj_links = self._hole_canvas_obj_bei_maus(event.x, event.y, (Knoten, Kante))
+        self._drag_nur_click_links = True
+
+    def _drag_start_rechts(self, event: tk.Event):
+        self._maus_unten = "rechts"
+        self._drag_nur_click_rechts = True
+        if self.running: return  # nicht, wenn gerade ein Algo läuft (rechts-Klicks sind Änderungen)
+        self._click_obj_rechts = self._hole_canvas_obj_bei_maus(event.x, event.y, (Knoten,))
+        if self._click_obj_rechts is not None:  # es ist immer ein Knoten, hier beginnt eine neue temp-Linie
+            # die temp-Linie wird am Ende auf jeden Fall wieder entfernt
+            # sollte die temp-Linie auf einem Ziel-Knoten landen, wird dort eine "richtige" neue Kante gebaut
+            kn = self._click_obj_rechts
+            self._drag_start_rechts_x = kn.x  # damit die temp-Linie am Knoten und nicht an der Maus losgeht
+            self._drag_start_rechts_y = kn.y  # damit die temp-Linie am Knoten und nicht an der Maus losgeht
+            self._drag_rechts_temp_line_id = self.canvas.create_line(kn.x, kn.y, kn.x, kn.y,
+                                                                     width=LINIEN_DICKE,
+                                                                     fill=FARBE_TEMP_LINIE)  # die temp-Linie
 
     def _drag_links_weiter(self, event: tk.Event):
-        self._drag_links_nur_click = False
-        if self._drag_links_id is not None and isinstance(self._canvas_id_dict[self._drag_links_id], Knoten):
+        self._drag_nur_click_links = False
+        if self._click_obj_links is not None and isinstance(self._click_obj_links, Knoten):
             # Knoten => bewegen
-            self._update(delta_x=event.x - self._drag_links_start_x,
-                         delta_y=event.y - self._drag_links_start_y,
-                         canvas_obj=self._canvas_id_dict[self._drag_links_id])
-        else:  # Canvas oder Kante => Canvas bewegen
-            self._update(delta_x=event.x - self._drag_links_start_x,
-                         delta_y=event.y - self._drag_links_start_y)
-        self._drag_links_start_x = event.x
-        self._drag_links_start_y = event.y
-
-    def _drag_links_stop(self, event: tk.Event):
-        self._maus_unten = None
-        if not self.running:  # nicht, wenn gerade ein Algo läuft
-            if self._drag_links_nur_click:  # es wurde nur links geklickt
-                canvas_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten, Kante))
-                if canvas_id is not None:
-                    if self.selected2 is None or self.selected2.canvas_id != canvas_id:
-                        if self.selected is None or self.selected.canvas_id != canvas_id:
-                            self.selected = self._canvas_id_dict[canvas_id]
-                        else:
-                            self.selected = None
-                    self.reset()
-            else:  # es wurde mit links gezogen
-                if self._drag_links_id is not None and isinstance(self._canvas_id_dict[self._drag_links_id], Knoten):
-                    # ein Knoten wurde verschoben
-                    self._update(delta_x=event.x - self._drag_links_start_x,
-                                 delta_y=event.y - self._drag_links_start_y,
-                                 canvas_obj=self._canvas_id_dict[self._drag_links_id])
-                    kn_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten,))
-                else:  # Canvas oder Kante wurde verschoben => Canvas schieben
-                    if self._drag_links_start_x is not None and self._drag_links_start_y is not None:
-                        self._update(delta_x=event.x - self._drag_links_start_x,
-                                     delta_y=event.y - self._drag_links_start_y)
-        self._drag_links_id = None
-        self._drag_links_nur_click = True
-
-    def _drag_rechts_start(self, event: tk.Event):
-        self._maus_unten = "rechts"
-        self._drag_rechts_nur_click = True
-        if self.running: return  # nicht, wenn gerade ein Algo läuft
-        self._drag_rechts_start_knoten_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten,))
-        if self._drag_rechts_start_knoten_id is not None:
-            kn = self._canvas_id_dict[self._drag_rechts_start_knoten_id]
-            self._drag_rechts_start_x = kn.x
-            self._drag_rechts_start_y = kn.y
-            self._drag_rechts_temp_line = self.canvas.create_line(kn.x, kn.y, kn.x, kn.y,
-                                                                  width=LINIEN_DICKE)
+            self._update(delta_x=event.x - self._drag_start_links_x,
+                         delta_y=event.y - self._drag_start_links_y,
+                         canvas_obj=self._click_obj_links)
+        else:  # Canvas oder Kante oder was anderes => Canvas bewegen (also alles AUF dem Canvas bewegen)
+            self._update(delta_x=event.x - self._drag_start_links_x,
+                         delta_y=event.y - self._drag_start_links_y)
+        self._drag_start_links_x = event.x
+        self._drag_start_links_y = event.y
 
     def _drag_rechts_weiter(self, event: tk.Event):
-        self._drag_rechts_nur_click = False
-        if self.running: return  # nicht, wenn gerade ein Algo läuft
-        if self._drag_rechts_start_knoten_id is not None:
-            tmp_kn_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten,))
-            if tmp_kn_id is None:
-                # die Maus ist nicht auf einem Knoten => temp Kante von StartKn nach hier
-                x = event.x
-                y = event.y
-            elif tmp_kn_id == self._drag_rechts_start_knoten_id:
-                # die Maus ist auf dem StartKn → nichts machen
-                return
-            else:
-                # die Maus ist auf einem anderen Knoten → temp Kante dort einrasten lassen
-                tmp_kn = self._canvas_id_dict[tmp_kn_id]
-                x = tmp_kn.x
-                y = tmp_kn.y
-            self.canvas.coords(self._drag_rechts_temp_line,
-                               self._drag_rechts_start_x,
-                               self._drag_rechts_start_y,
-                               x, y)
+        self._drag_nur_click_rechts = False
+        if not self.running and self._click_obj_rechts is not None:  # wenn kein Algo läuft und etwas angeklickt wurde
+            tmp_kn = self._hole_canvas_obj_bei_maus(event.x, event.y, (Knoten,))
+            if tmp_kn is not self._click_obj_rechts:  # nichts machen, wenn Maus auf StartKn
+                if tmp_kn is None:  # die Maus ist nicht auf einem Knoten => temp Linie von StartKn nach hier
+                    x = event.x
+                    y = event.y
+                else:  # die Maus ist auf einem anderen Knoten → temp Kante dort einrasten lassen
+                    x = tmp_kn.x
+                    y = tmp_kn.y
+                self.canvas.coords(self._drag_rechts_temp_line_id,
+                                   self._drag_start_rechts_x, self._drag_start_rechts_y,
+                                   x, y)
+
+    def _drag_links_stop(self, event: tk.Event):
+        """
+        Das Bewegen von Knoten und Canvas macht schon _drag_links_weiter.
+        Hier wird nur noch die (Un-)Markierung von selected1 gemacht.
+        """
+        if (
+                not self.running  # nicht an/abwählen, wenn Algo läuft
+                and self._drag_nur_click_links  # es wurde nur geklickt, nicht gezogen
+                and self._click_obj_links is not None  # nicht, wenn nichts angeklickt wurde
+        ):
+            self.knoten_kante_geklickt(self._click_obj_links)
+        self._maus_unten = None
+        self._click_id_links = None
 
     def _drag_rechts_stop(self, event: tk.Event):
+        """
+        Das Bewegen der tmp-Linie _drag_rechts_weiter.
+        Hier wird "nur noch" ggf gemacht:
+        - (Un-)Markierung von selected2
+        - Anlegen neuer Knoten/Kanten
+        """
         self._maus_unten = None
-        if not self.running:  # nicht, wenn gerade ein Algo läuft
-            if self._drag_rechts_nur_click:  # es wurde nur mit rechts geklickt → Knoten bauen oder Auswahl ändern
-                canvas_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten, Kante))
-                if canvas_id is None:  # neuen Knoten bauen
+        self.canvas.delete(self._drag_rechts_temp_line_id)
+        self._drag_rechts_temp_line_id = None
+        if not self.running:  # nicht, wenn gerade ein Algo läuft (aufräumen und beenden)
+            if self._drag_nur_click_rechts:  # es wurde nur geklickt, nicht gezogen → Knoten bauen oder Auswahl ändern
+                c_obj = self._hole_canvas_obj_bei_maus(event.x, event.y, (Knoten, Kante))
+                if c_obj is None:  # leere Stelle → neuen Knoten bauen
                     name = 1
                     while str(name) in self._knoten_dict:
                         name += 1
                     self._neuer_knoten(str(name), event.x, event.y)
                 else:  # bisherige Auswahl ausmachen oder neue Anmachen
-                    if self.selected is None or self.selected.canvas_id != canvas_id:
-                        if self.selected2 is None or self.selected2.canvas_id != canvas_id:
-                            self.selected2 = self._canvas_id_dict[canvas_id]
-                        else:
-                            self.selected2 = None
-                    self.reset()
-            else:  # es wurde mit rechts gezogen → evtl Kante verbinden
-                if self._drag_rechts_start_knoten_id is None: return  # kein Startknoten gewählt
-                tmp_kn_id = self._hole_canvas_id_bei_maus(event.x, event.y, (Knoten,))
-                if tmp_kn_id is not None:  # ziel muss ein Knoten sein
-                    if tmp_kn_id != self._drag_rechts_start_knoten_id:  # nicht zum selben Knoten
-                        end_kn = self._canvas_id_dict[tmp_kn_id]
-                        start_kn = self._canvas_id_dict[self._drag_rechts_start_knoten_id]
-                        self._neue_kante(start_kn.name, end_kn.name)
-                # dragging aufräumen
-                self.canvas.delete(self._drag_rechts_temp_line)
-        self._drag_rechts_temp_line = None
-        self._drag_rechts_start_knoten_id = None
+                    self.knoten_kante_geklickt(c_obj, False)
+            else:  # es wurde mit rechts gezogen → evtl. neue Kante bauen
+                if self._click_obj_rechts is not None:  # es muss ein Startknoten gewählt sein
+                    end_kn = self._hole_canvas_obj_bei_maus(event.x, event.y, (Knoten,))
+                    if end_kn is not None and end_kn is not self._click_obj_rechts:  # Ziel muss ein ANDERER Knoten sein
+                        self._neue_kante(self._click_obj_rechts.name, end_kn.name)
+        self._click_id_rechts = None
 
     def _pfeiltaste(self, dx: int = 0, dy: int = 0):
-        if isinstance(self.selected, Knoten):
-            self._update(delta_x=dx, delta_y=dy, canvas_obj=self.selected)
+        if isinstance(self.selected1, Knoten):
+            self._update(delta_x=dx, delta_y=dy, canvas_obj=self.selected1)
 
     def _pfeiltaste_hoch(self, event: tk.Event):
         self._pfeiltaste(dy=-1)
@@ -696,6 +791,106 @@ class Graph(
             self._update(delta_x=event.x, delta_y=event.y, delta_zoom=ZOOM_FAKTOR_REIN)
 
     ############################# optische Aktualisierungen ####################################################
+
+    def knoten_kante_geklickt(self,
+                              k: Knoten | Kante,
+                              links: bool = True):
+        """
+        wenn ein Knoten oder eine Kante geklickt wird, muss evtl selected und selected2 neu belegt und gemalt werden
+
+        :k: der/die zu wählende Knoten/Kante
+        :links: ob mit links geklickt wurde (sonst ist es rechts)
+        bei Bedarf werden alte und neue Auswahlen neu designt und gemalt
+        """
+
+        def an(k: Knoten | Kante):
+            if isinstance(k, Knoten):
+                self.knoten_design(k,
+                                   form=(1, 3)[links],
+                                   rand=(FARBE_SELECT2, FARBE_SELECT1)[links],
+                                   mitte=FARBE_KNOTEN_MITTE)
+                # knoten_id_wechsel(k, form=(1, 3)[links], outline=(FARBE_SELECT2, FARBE_SELECT1)[links])
+            elif isinstance(k, Kante):
+                self.kanten_design(k, farbe=(FARBE_SELECT2, FARBE_SELECT1)[links])
+
+        def aus(k: Knoten | Kante):
+            if isinstance(k, Knoten):
+                self.knoten_design(k,
+                                   form=FORM_KNOTEN,
+                                   rand=FARBE_KNOTEN_RAND,
+                                   mitte=FARBE_KNOTEN_MITTE)
+            elif isinstance(k, Kante):
+                self.kanten_design(k, farbe=FARBE_KANTEN)
+
+        if k is None: return  # nur wenn da was ist
+        if links and k is self.selected2: return  # k kann nicht beides sein
+        if not links and k is self.selected1: return  # k kann nicht beides sein
+
+        if links and k is self.selected1:  # bestehendes selected wird ausgeschaltet
+            aus(k)
+            self.selected1 = None
+            self._update(canvas_obj=k)
+        elif not links and k is self.selected2:  # bestehendes selected2 wird ausgeschaltet
+            aus(k)
+            self.selected2 = None
+            self._update(canvas_obj=k)
+        elif links and self.selected1 is None:  # es gibt kein selected und es wird eins gewählt
+            an(k)
+            self.selected1 = k
+            self._update(canvas_obj=k)
+        elif not links and self.selected2 is None:  # es gibt kein selected2 und es wird eins gewählt
+            an(k)
+            self.selected2 = k
+            self._update(canvas_obj=k)
+        elif links:  # selected wird umgeschaltet (das Alte muss aus, das Neue an)
+            k_alt = self.selected1
+            aus(k_alt)
+            an(k)
+            self.selected1 = k
+            self._update(canvas_obj=(k, k_alt))
+        elif not links:  # selected2 wird umgeschaltet (das Alte muss aus, das Neue an)
+            k_alt = self.selected2
+            aus(k_alt)
+            an(k)
+            self.selected2 = k
+            self._update(canvas_obj=(k, k_alt))
+
+    def kanten_design(self, ka: Kante | None,
+                      *,  # ab hier nur benannt
+                      farbe: str | None = None,
+                      striche: tuple = ()):
+        if ka is not None:
+            # hier ruft der Graph eine Methode auf, die nicht aus dem Graphtool aufgerufen werden soll → name mangling
+            ka._Kante__set_design(fill=farbe, dash=striche)
+            self._update(canvas_obj=ka)
+
+    def knoten_design(self,
+                      kn: Knoten | None,
+                      *,  # ab hier nur benannt
+                      form: int = None,
+                      rand: str | None = None,
+                      mitte: str | None = None):
+        """
+        legt die Form und Farbe der Kreisdarstellung fest
+        0 Ecken → Kreis
+        1 Ecke → Dreieck Spitze unten
+        2 Ecken → Quadrat (mit einer Seite oben)
+        ab 3 Ecken → n-Eck Spitze oben (Dreieck, Quadrat, ...)
+        """
+        if kn is not None:
+            alte_id = kn.canvas_id
+            # hier ruft der Graph eine Methode auf, die nicht aus dem Graphtool aufgerufen werden soll → name mangling
+            neue_id = kn._Knoten__set_design(form=form,
+                                             # bei Bedarf wird das CanvasObj-neu hier gebaut und alt gelöscht
+                                             fill=mitte,
+                                             outline=rand)
+            if alte_id != neue_id:
+                del self._canvas_id_dict[alte_id]
+                kn.canvas_id = neue_id
+                self._canvas_id_dict[neue_id] = kn
+
+            self._update(canvas_obj=kn)
+
     def reset(self):
         """
         stellt alle Knoten- und Kantenfarben auf default
@@ -703,65 +898,70 @@ class Graph(
         löscht die Algo-Ausgabe
         """
         for kn in self.knoten:
-            if kn is self.selected:
-                self.canvas.itemconfigure(kn.canvas_id, fill=FARBE_KNOTEN_MITTE, outline=FARBE_AUSWAHL)
+            if kn is self.selected1:
+                self.knoten_design(kn, form=FORM_KNOTEN_SELECT1, mitte=FARBE_KNOTEN_MITTE,
+                                   rand=FARBE_SELECT1)
             elif kn is self.selected2:
-                self.canvas.itemconfigure(kn.canvas_id, fill=FARBE_KNOTEN_MITTE, outline=FARBE_AUSWAHL_2)
+                self.knoten_design(kn, form=FORM_KNOTEN_SELECT2, mitte=FARBE_KNOTEN_MITTE,
+                                   rand=FARBE_SELECT2)
             else:
-                self.canvas.itemconfigure(kn.canvas_id, fill=FARBE_KNOTEN_MITTE, outline=FARBE_KNOTEN_RAND)
+                self.knoten_design(kn, form=FORM_KNOTEN, mitte=FARBE_KNOTEN_MITTE, rand=FARBE_KNOTEN_RAND)
         for ka in self.kanten:
-            if ka is self.selected:
-                self.canvas.itemconfigure(ka.canvas_id, fill=FARBE_AUSWAHL)
+            if ka is self.selected1:
+                self.kanten_design(ka, farbe=FARBE_SELECT1)
             elif ka is self.selected2:
-                self.canvas.itemconfigure(ka.canvas_id, fill=FARBE_AUSWAHL_2)
+                self.kanten_design(ka, farbe=FARBE_SELECT2)
             else:
-                self.canvas.itemconfigure(ka.canvas_id, fill=FARBE_KANTEN)
+                self.kanten_design(ka, farbe=FARBE_KANTEN)
         self._lbl_out.config(text="")
 
     def _update(self, delta_x: float = 0, delta_y: float = 0,
                 delta_zoom: float | None = None,
-                canvas_obj: Knoten | Kante | tuple | None = None):
+                canvas_obj: Knoten | Kante | tuple[Knoten | Kante | None, ...] | None = None):
         """
         Zeichnet Knoten und Kanten, mit optionalen Zoom- und Positionsupdates.
         canvas_obj ist entweder ein Element oder ein Tupel von Elementen
 
-        ist canvas_obj angegeben wird/werden nur diese/s Element/e aktualisiert
-        ist ein aktualisiertes Element ein Knoten, werden auch dessen Kanten aktualisiert
-        ist canvas_obj nicht angegeben, wird alles aktualisiert
+        Ist canvas_obj angegeben wird/werden nur diese/s Element/e aktualisiert.
+        Ist ein aktualisiertes Element ein Knoten, werden auch dessen Kanten aktualisiert.
+        Ist canvas_obj nicht angegeben, wird alles aktualisiert.
 
-        ohne Zoomfaktor werden die aktualisierten Elemente um delta_x und delta_y verschoben.
+        Ohne Zoomfaktor werden die aktualisierten Elemente um delta_x und delta_y verschoben.
 
-        mit Zoomfaktor wird das Bild gezoomt und so verschoben, dass der Zoom relativ zur Maus stattfindet
+        Mit Zoomfaktor wird das Bild gezoomt und so verschoben, dass der Zoom relativ zur Maus stattfindet.
         Dann müssen die Argumente delta_x und delta_y die Mausposition sein.
         """
 
         # Knoten und Kanten einsammeln
-        if canvas_obj is None:  # nix angegeben => alles einsammeln
+        if canvas_obj is None:  # nichts angegeben → alles einsammeln
             knoten = {kn for kn in self.knoten}
             kanten = {ka for ka in self.kanten}
         else:  # zu ändernde Knoten und Kanten sammeln
             knoten = set()
             kanten = set()
-            if not isinstance(canvas_obj, tuple): canvas_obj = (canvas_obj,)  # einzeln angegebenes Element in Tupel
-            for elem in canvas_obj:
+            if not isinstance(canvas_obj, tuple): canvas_obj = (canvas_obj,)  # einzelnes Element in Tupel packen
+            for elem in canvas_obj:  # Tupel auswerten
                 if isinstance(elem, Knoten):
                     knoten.add(elem)
                 elif isinstance(elem, Kante):
                     kanten.add(elem)
-            for ka in self.kanten:  # Kanten die an geänderten Knoten hängen
+            for ka in self.kanten:  # Kanten, die an geänderten Knoten hängen, auch einsammeln
                 if ka.von in knoten or ka.nach in knoten: kanten.add(ka)
 
-        if delta_zoom is None:
+        if delta_zoom is None:  # nur alles verschieben
             for kn in knoten:
                 kn.update(delta_x, delta_y)
-        else:
+        else:  # zoom mit reinrechnen
             for kn in knoten:
                 kn.update((delta_zoom - 1) * (kn.x - delta_x),
                           (delta_zoom - 1) * (kn.y - delta_y))
-        multi_kanten = {ka.multi_kante for ka in kanten}  # statt Kanten Multi-Kanten aktualisieren
+
+        # statt Kanten werden Multi-Kanten aktualisiert
+        multi_kanten = {ka.multi_kante for ka in kanten}
         for mk in multi_kanten:
             mk.update()
 
+        # bei der Gelegenheit gleich noch die Anzeigelabel aktualisieren
         self._lbl_knoten_zahl.config(text=f"Knoten\n{len(self._knoten_dict)}")
         self._lbl_kanten_zahl.config(text=f"Kanten\n{len(self._kanten_dict)}")
 
@@ -840,8 +1040,6 @@ class Graph(
         else:
             self._btn_algo_weiter.config(state="disabled")
 
-        print(self._hintergrundbild_original)
-
     def _startstop_toggle(self):
         if self.running:
             self._algo_stop()
@@ -852,15 +1050,8 @@ class Graph(
 
 
 if __name__ == "__main__":
-    # app = CanvasGraph(lade_graph="koenigsbergerbruecken.graph", multi_graph=True)
+    # app = CanvasGraph(lade_graph="graphen/Königsberg.graph", multi_graph=True)
     app = Graph(lade_graph="graphen/Drachen.graph")
-    print(app)
-
-    print()
-
-    print(*app.knoten)
-    print(*app.kanten)
-
     app.starte_gui()
 
 # todo
