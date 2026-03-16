@@ -8,6 +8,7 @@ class Graph(cg.Graph):
         self.algo_hinzufuegen("alle Knoten iterieren", self.makiere_knoten)
         self.algo_hinzufuegen('Breitensuche', self.breitensuche)
         self.algo_hinzufuegen('Breitensuche mit Ziel', self.breitensuche_mit_ziel)
+        self.algo_hinzufuegen('Kreisfrei', self.kreisfrei)
 
 
     ################################### helper ###################################
@@ -18,7 +19,43 @@ class Graph(cg.Graph):
             elif ka.nach is kn:
                 yield ka.von
 
+
+
     ################################### algos ###################################
+
+    def kreisfrei(self):
+        start = self.selected1
+        if start is None or not isinstance(start, cg.Knoten):
+            try:
+                start = next(iter(self.knoten))
+            except StopIteration:
+                yield "Der Graph enthält keine Knoten, ist also kreisfrei", False
+
+        zu_bearbeiten = [start]
+        bekannt = {start: None}
+
+        while zu_bearbeiten:
+            aktuell = zu_bearbeiten.pop(0)
+            self.knoten_design(aktuell, mitte='green', form=2)
+            yield f'Knoten {aktuell} in Bearbeitung'
+
+            for nachbar in self.hole_nachbarknoten(aktuell):
+                self.knoten_design(nachbar, mitte='yellow', form=0)
+                yield f'Nachbar gefunden, prüfe, ob es der richtige Vorgänger ist'
+                if nachbar in bekannt:
+                    if nachbar is bekannt[aktuell]:
+                        yield f'bekannter Nachbar gefunden, der ist Vorgänger, kein Kreis'
+                        self.knoten_design(aktuell, mitte='orange', form=0)
+                    else:
+                        yield f'Kreis gefunden', False
+                        ... # noch kein kreis
+                else:
+                    bekannt[nachbar]=aktuell
+                    zu_bearbeiten.append(nachbar)
+
+            self.knoten_design(aktuell, mitte='red', form=1)
+            yield f'Knoten {aktuell} fertig bearbeitet'
+
     def anzahl_kanten(self):
         yield f'Der Graph hat {len(self.kanten)} Kanten.', False
 
