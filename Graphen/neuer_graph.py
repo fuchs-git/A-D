@@ -178,6 +178,8 @@ class Graph(cg.Graph):
         yield 'fertig', False
 
 
+
+
 graph = Graph()
-graph.lade_graph("graphen/Drachen.graph")
+graph.lade_graph("graphen/Komponenten.graph")
 graph.starte_gui()
