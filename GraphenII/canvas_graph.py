@@ -7,6 +7,12 @@ import os, platform, sys
 from typing import Iterator, Callable, Literal, Generator
 from math import sin, cos, pi
 
+from queue import Queue
+from collections import deque
+
+q = Queue()
+
+
 ########################## Block mit Vorgabewerten, diese dürfen geändert werden ##########################
 # Optik
 LINIEN_DICKE = 4

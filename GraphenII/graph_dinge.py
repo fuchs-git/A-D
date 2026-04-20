@@ -10,6 +10,7 @@ class Graph(cg.Graph):
         self.algo_hinzufuegen("alle Kanten iterieren", self.markiere_kanten)
         self.algo_hinzufuegen("alle Knoten stufenweise", self.markiere_kanten)
         self.algo_hinzufuegen("Breitensuche (BFS)", self.breitensuche)
+        self.algo_hinzufuegen('Tiefensuche (DFS)', self.tiefensuche)
         self.algo_hinzufuegen("Zielsuche (BFS)", self.breitensuche_mit_ziel)
         self.algo_hinzufuegen("kreisfrei (BFS)", self.kreisfreiheit)
         self.algo_hinzufuegen('Zusammenhang (BFS)', self.ist_zusammenhaengend)
@@ -222,6 +223,51 @@ class Graph(cg.Graph):
                             bekannt.add(nb)
                             zu_bearbeiten.append(nb)
         yield f"Der Graph hat {anzahl} ZHK", False
+
+    def tiefensuche(self):
+        def rek(aktuell:cg.Knoten):
+            self.knoten_design(aktuell, form=3, rand="green")
+
+            for nachbar in self.hole_nachbarknoten(aktuell):
+                if nachbar not in bekannt:
+
+                    self.knoten_design(nachbar, form=3, rand="yellow")
+                    yield f"neuer Knoten {nachbar} gefunden"
+
+                    bekannt.add(nachbar)
+
+                    self.knoten_design(aktuell, form=3, rand="yellow")
+                    yield f"neuer Knoten {nachbar} gefunden"
+
+                    yield from rek(nachbar)
+                    self.knoten_design(aktuell, form=3, rand="green")
+            self.knoten_design(aktuell, form=2, rand="red")
+
+
+        ziel = self.selected2
+        if ziel is None:
+            yield "es muss ein Ziel angegeben werden", False
+
+        start = None
+        if self.selected1 is None:
+            try:
+                start = next(iter(self.knoten))
+            except:
+                yield "Tiefensuche fertig (es war nix da zum suchen)", False
+        else:
+            start = self.selected1
+
+        zu_bearbeiten = [start]
+        bekannt = {start}
+        self.knoten_design(start, form=3, rand="yellow")
+
+
+        yield from rek(start)
+
+
+
+
+
 
 
 
